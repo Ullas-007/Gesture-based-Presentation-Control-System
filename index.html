@@ -1,0 +1,986 @@
+
+<!DOCTYPE html>
+<html lang="en" class="light scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Powered Gesture Based Presentation Control System</title>
+    <meta name="description" content="AI-based touchless gesture control engine for PowerPoint and Keynote presentations powered by MediaPipe and Python. Experience zero-latency spatial control.">
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Open+Sans:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/google-sans" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Google Sans', 'Product Sans', 'Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        antigravity: {
+                            bg: '#FAFAFC',
+                            card: 'rgba(255, 255, 255, 0.9)',
+                            blue: '#1A73E8',
+                            cyan: '#00838F',
+                            purple: '#7C4DFF',
+                            emerald: '#137333',
+                            amber: '#E65100',
+                            pink: '#D81B60',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 3s infinite alternate',
+                        'float-slow': 'floatSlow 6s ease-in-out infinite',
+                        'scanline': 'scanline 8s linear infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { opacity: '0.4', filter: 'drop-shadow(0 0 15px rgba(26, 115, 232, 0.4))' },
+                            '100%': { opacity: '0.9', filter: 'drop-shadow(0 0 35px rgba(0, 131, 143, 0.6))' },
+                        },
+                        floatSlow: {
+                            '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+                            '50%': { transform: 'translateY(-12px) rotate(1deg)' },
+                        },
+                        scanline: {
+                            '0%': { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(1000%)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @font-face {
+            font-family: 'Google Sans';
+            src: local('Google Sans'), local('GoogleSans-Regular'), local('Product Sans');
+            font-display: swap;
+        }
+
+        body {
+            background-color: #fafafc;
+            color: #0f172a;
+            overflow-x: hidden;
+            font-family: 'Google Sans', 'Product Sans', 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Dynamic Fluid Heading Scale Utilities */
+        .text-fluid-hero {
+            font-size: clamp(2.75rem, 5.5vw + 1rem, 5.25rem);
+            line-height: 1.06;
+            letter-spacing: -0.035em;
+        }
+
+        .text-fluid-section {
+            font-size: clamp(1.85rem, 3.2vw + 0.5rem, 3.1rem);
+            line-height: 1.15;
+            letter-spacing: -0.025em;
+        }
+
+        .text-fluid-card {
+            font-size: clamp(1.05rem, 1.4vw + 0.35rem, 1.45rem);
+            line-height: 1.25;
+            letter-spacing: -0.015em;
+        }
+
+        .text-fluid-metric {
+            font-size: clamp(1.75rem, 2.8vw + 0.5rem, 2.75rem);
+            line-height: 1.1;
+        }
+
+        /* Animated Text Gradient & Dynamics */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-text {
+            background-size: 200% auto;
+            animation: gradientShift 6s ease infinite;
+        }
+
+        /* Glassmorphism Light Styles */
+        .ag-glass {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.75) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
+        }
+
+        .ag-glass-interactive {
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .ag-glass-interactive:hover {
+            border-color: rgba(26, 115, 232, 0.4);
+            box-shadow: 0 16px 32px -8px rgba(26, 115, 232, 0.15), inset 0 1px 0 rgba(255, 255, 255, 1);
+            transform: translateY(-3px);
+        }
+
+        /* Gradient Borders Light Mask */
+        .gradient-border-mask {
+            position: relative;
+            border-radius: 1.5rem;
+            background: #ffffff;
+            box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.08);
+        }
+        .gradient-border-mask::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 1.5rem;
+            padding: 1.5px;
+            background: linear-gradient(135deg, #1a73e8, #7c4dff, #00838f, #137333);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        .gradient-border-mask:hover::before {
+            opacity: 1;
+        }
+
+        /* Toast Popup Notification */
+        #toast {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateY(20px);
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="selection:bg-blue-500/20 selection:text-blue-900">
+
+    <!-- Anti-Gravity Canvas Background -->
+    <canvas id="antigravityCanvas" class="fixed inset-0 w-full h-full z-0 pointer-events-none"></canvas>
+
+    <!-- Interactive SVG Reticle Overlay Layer -->
+    <svg id="trackingSvg" class="fixed inset-0 w-full h-full z-10 pointer-events-none">
+        <defs>
+            <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+        
+        <!-- HUD Reticle Rings -->
+        <circle id="targetRing" cx="-100" cy="-100" r="16" stroke="rgba(26, 115, 232, 0.4)" stroke-width="1.5" fill="none" stroke-dasharray="3 3" />
+        <circle id="targetDot" cx="-100" cy="-100" r="3" fill="#1A73E8" filter="url(#glowBlue)" />
+    </svg>
+
+    <!-- Background Ambient Multi-Color Gradient Orbs (Light Mode) -->
+    <div class="fixed top-[-15vw] left-[-10vw] w-[50vw] h-[50vw] rounded-full bg-blue-400/15 blur-[150px] pointer-events-none z-0"></div>
+    <div class="fixed bottom-[-15vw] right-[-10vw] w-[50vw] h-[50vw] rounded-full bg-purple-400/15 blur-[150px] pointer-events-none z-0"></div>
+    <div class="fixed top-[40%] left-[35%] w-[35vw] h-[35vw] rounded-full bg-cyan-400/10 blur-[180px] pointer-events-none z-0"></div>
+
+    <!-- Top Navigation Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-4 backdrop-blur-xl border-b border-slate-200/80 bg-white/80 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- Brand Logo -->
+            <a href="#" class="flex items-center space-x-3 group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-300">
+                    <div class="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-slate-900 tracking-tight text-lg">GESTER</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-widest font-semibold">ANTIGRAVITY</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">v2.4 Telemetry Core</span>
+                </div>
+            </a>
+
+            <!-- Nav Links -->
+            <nav class="hidden md:flex items-center space-x-8 text-xs font-semibold text-slate-600">
+                <a href="#overview" class="hover:text-blue-600 transition-colors">Overview</a>
+                <a href="#simulator" class="hover:text-blue-600 transition-colors flex items-center space-x-1">
+                    <span>Live Simulator</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                </a>
+                <a href="#gestures" class="hover:text-blue-600 transition-colors">Gesture Matrix</a>
+                <a href="#terminal" class="hover:text-blue-600 transition-colors">Setup & Terminal</a>
+            </nav>
+
+            <!-- Action CTAs -->
+            <div class="flex items-center space-x-3">
+                <button id="toggleGravityBtn" class="hidden sm:flex items-center space-x-2 text-xs font-mono px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 hover:border-blue-500/40 text-slate-700 hover:text-blue-600 transition-all shadow-sm">
+                    <span id="gravityDot" class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                    <span id="gravityStatus">PROXIMITY GLOW: ACTIVE</span>
+                </button>
+                <a href="gesture_control.py" download="gesture_control.py" class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-medium text-xs shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 hover:scale-105 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download Script</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="relative z-30 pt-36 pb-24 px-6 max-w-7xl mx-auto flex flex-col items-center">
+
+        <!-- Hero Badge & Title Section -->
+        <section id="overview" class="text-center max-w-4xl mx-auto mb-16 flex flex-col items-center">
+            <!-- Google Antigravity Pill Badge -->
+            <div class="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/90 border border-slate-200 shadow-sm backdrop-blur-md mb-8">
+                <span class="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+                <span class="text-xs font-mono text-blue-700 tracking-wider font-semibold">NEXT-GEN AI VISION ENGINE</span>
+                <span class="text-slate-300">&bull;</span>
+                <span class="text-xs font-mono text-purple-700 font-semibold">PYTHON + MEDIAPIPE</span>
+            </div>
+
+            <!-- Main Heading with Iridescent Gradient Text -->
+            <h1 class="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-6 leading-[1.1]">
+                Touchless Presentation <br>
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-cyan-600 to-purple-600">
+                    Spatial Control Engine
+                </span>
+            </h1>
+
+            <p class="text-base sm:text-lg text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed mb-10">
+                Experience seamless, sub-15ms hand gesture tracking for PowerPoint and Keynote. 
+                Powered by dual-camera AI telemetry and sub-pixel MediaPipe hand landmark reconstruction.
+            </p>
+
+            <!-- Metrics Quick Ribbon -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl mb-12">
+                <div class="ag-glass p-4 rounded-2xl border border-slate-200/80 text-center shadow-sm">
+                    <div class="text-2xl font-bold text-blue-600 font-mono">60 FPS</div>
+                    <div class="text-[11px] text-slate-500 font-medium">Real-time Telemetry</div>
+                </div>
+                <div class="ag-glass p-4 rounded-2xl border border-slate-200/80 text-center shadow-sm">
+                    <div class="text-2xl font-bold text-purple-600 font-mono">&lt; 15ms</div>
+                    <div class="text-[11px] text-slate-500 font-medium">Action Latency</div>
+                </div>
+                <div class="ag-glass p-4 rounded-2xl border border-slate-200/80 text-center shadow-sm">
+                    <div class="text-2xl font-bold text-emerald-600 font-mono">21 Pts</div>
+                    <div class="text-[11px] text-slate-500 font-medium">3D Landmark Mesh</div>
+                </div>
+                <div class="ag-glass p-4 rounded-2xl border border-slate-200/80 text-center shadow-sm">
+                    <div class="text-2xl font-bold text-amber-600 font-mono">$0 Cost</div>
+                    <div class="text-[11px] text-slate-500 font-medium">Standard Webcam</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="gesture_control.py" download="gesture_control.py" class="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 hover:scale-105 transition-all flex items-center space-x-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download `gesture_control.py`</span>
+                </a>
+                <a href="#simulator" class="px-8 py-4 rounded-2xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:border-blue-500/50 hover:text-blue-600 hover:scale-105 shadow-sm transition-all flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/></svg>
+                    <span>Try In-Browser Simulator</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Interactive In-Browser Presentation Simulator -->
+        <section id="simulator" class="w-full max-w-5xl mx-auto mb-28">
+            <div class="text-center mb-8">
+                <span class="text-xs font-mono text-blue-600 font-semibold tracking-widest uppercase">Interactive Prototype</span>
+                <h2 class="text-3xl font-bold text-slate-900 tracking-tight mt-1">Live Presentation Simulator</h2>
+                <p class="text-xs text-slate-500 font-normal mt-2">Test how the gesture commands control PowerPoint slides directly inside your browser.</p>
+            </div>
+
+            <!-- Simulator Deck Outer Frame -->
+            <div class="gradient-border-mask p-1 shadow-xl">
+                <div class="bg-white rounded-[22px] overflow-hidden border border-slate-200/80">
+                    <!-- Simulator Header Bar -->
+                    <div class="px-6 py-4 border-b border-slate-200/80 bg-slate-50/90 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-red-400"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                            <span class="text-xs font-mono text-slate-600 font-medium ml-2">PPT_SLIDE_FRAME_HOST.exe</span>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs font-mono">
+                            <span id="simStatusBadge" class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">SYSTEM ACTIVE</span>
+                            <span id="simSlideCount" class="text-slate-500 font-mono">SLIDE 1 / 4</span>
+                        </div>
+                    </div>
+
+                    <!-- Simulator Content Window -->
+                    <div class="relative min-h-[360px] md:min-h-[420px] p-8 md:p-12 flex flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/40 text-slate-900">
+                        
+                        <!-- HUD Feedback Toast Overlay on Slide Screen -->
+                        <div id="simFeedbackHud" class="absolute top-6 left-1/2 -translate-x-1/2 px-6 py-2 rounded-xl bg-white/95 border border-blue-500/30 text-blue-700 font-mono text-sm font-semibold tracking-wide shadow-xl opacity-0 transition-opacity duration-300 z-20">
+                            HUD FEEDBACK
+                        </div>
+
+                        <!-- Paused Overlay Screen -->
+                        <div id="simPausedOverlay" class="absolute inset-0 bg-white/90 backdrop-blur-md z-10 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                            <div class="w-16 h-16 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 mb-3 shadow-sm">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"/></svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-900 font-mono">SYSTEM PAUSED</h3>
+                            <p class="text-xs text-slate-500 mt-1">Left hand fist detected. Spatial telemetry suspended.</p>
+                        </div>
+
+                        <!-- Current Slide Content Display -->
+                        <div id="slideContent" class="flex-1 flex flex-col justify-center items-center text-center transition-all duration-300">
+                            <span class="text-xs font-mono text-blue-600 font-semibold tracking-widest uppercase mb-3">Slide 01 // Vision Engine</span>
+                            <h3 class="text-2xl md:text-4xl font-extrabold text-slate-900 max-w-2xl leading-tight">
+                                Real-Time 3D Hand Tracking & Landmark Detection
+                            </h3>
+                            <p class="text-sm text-slate-600 max-w-lg mt-4 font-normal leading-relaxed">
+                                MediaPipe constructs a 21-point spatial skeleton in 3D coordinate space directly from any webcam feed.
+                            </p>
+                        </div>
+
+                        <!-- Simulator Interactive Gesture Controls Panel -->
+                        <div class="mt-8 pt-6 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex items-center space-x-2 text-xs font-mono text-slate-500">
+                                <span>SIMULATE GESTURES:</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button onclick="triggerSimGesture('prev')" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 hover:border-blue-500/50 hover:bg-blue-50/50 text-xs font-mono text-slate-700 hover:text-blue-600 flex items-center space-x-1.5 transition-all shadow-sm">
+                                    <span>👈 Right Swipe Left (Prev Slide)</span>
+                                </button>
+                                <button onclick="triggerSimGesture('next')" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 hover:border-blue-500/50 hover:bg-blue-50/50 text-xs font-mono text-slate-700 hover:text-blue-600 flex items-center space-x-1.5 transition-all shadow-sm">
+                                    <span>👉 Right Swipe Right (Next Slide)</span>
+                                </button>
+                                <button onclick="triggerSimGesture('fullscreen')" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 hover:border-purple-500/50 hover:bg-purple-50/50 text-xs font-mono text-slate-700 hover:text-purple-600 flex items-center space-x-1.5 transition-all shadow-sm">
+                                    <span>🖐️ Right Palm Hold (Fullscreen F5)</span>
+                                </button>
+                                <button onclick="triggerSimGesture('pause')" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 hover:border-red-500/50 hover:bg-red-50/50 text-xs font-mono text-slate-700 hover:text-red-600 flex items-center space-x-1.5 transition-all shadow-sm">
+                                    <span>✊ Left Fist (Pause/Resume)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gesture Mapping Matrix Section -->
+        <section id="gestures" class="w-full max-w-5xl mx-auto mb-28">
+            <div class="text-center mb-12">
+                <span class="text-xs font-mono text-purple-600 font-semibold tracking-widest uppercase">Spatial Mapping</span>
+                <h2 class="text-3xl font-bold text-slate-900 tracking-tight mt-1">Intuitive Hand Gestures</h2>
+                <p class="text-xs text-slate-500 font-normal mt-2">Zero complex hotkeys required. Natural spatial motions translated into PowerPoint actions.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Gesture Card 1 -->
+                <div class="ag-glass ag-glass-interactive p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between group shadow-sm">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                            👉
+                        </div>
+                        <h3 class="text-slate-900 font-bold text-sm mb-1">Right Swipe Right</h3>
+                        <p class="text-xs font-mono text-blue-600 font-semibold mb-3">Action: Next Slide (Right Arrow)</p>
+                        <p class="text-xs text-slate-600 font-normal leading-relaxed">
+                            Extend 2+ fingers on physical right hand and swipe towards the right to trigger next slide.
+                        </p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200/60 text-[10px] font-mono text-slate-400">
+                        Displacement: &gt; +60px
+                    </div>
+                </div>
+
+                <!-- Gesture Card 2 -->
+                <div class="ag-glass ag-glass-interactive p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between group shadow-sm">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                            👈
+                        </div>
+                        <h3 class="text-slate-900 font-bold text-sm mb-1">Right Swipe Left</h3>
+                        <p class="text-xs font-mono text-purple-600 font-semibold mb-3">Action: Prev Slide (Left Arrow)</p>
+                        <p class="text-xs text-slate-600 font-normal leading-relaxed">
+                            Swipe extended fingers towards the left side to return to the previous slide.
+                        </p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200/60 text-[10px] font-mono text-slate-400">
+                        Displacement: &lt; -60px
+                    </div>
+                </div>
+
+                <!-- Gesture Card 3 -->
+                <div class="ag-glass ag-glass-interactive p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between group shadow-sm">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                            🖐️
+                        </div>
+                        <h3 class="text-slate-900 font-bold text-sm mb-1">Right Open Palm</h3>
+                        <p class="text-xs font-mono text-amber-600 font-semibold mb-3">Action: Fullscreen (F5)</p>
+                        <p class="text-xs text-slate-600 font-normal leading-relaxed">
+                            Hold open right palm facing camera for 1.0 second. Triggers full screen presentation view.
+                        </p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200/60 text-[10px] font-mono text-slate-400">
+                        Hold Timer: 1.0s Radial Latch
+                    </div>
+                </div>
+
+                <!-- Gesture Card 4 -->
+                <div class="ag-glass ag-glass-interactive p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between group shadow-sm">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                            ✊
+                        </div>
+                        <h3 class="text-slate-900 font-bold text-sm mb-1">Left Hand Fist</h3>
+                        <p class="text-xs font-mono text-red-600 font-semibold mb-3">Action: Pause / Resume</p>
+                        <p class="text-xs text-slate-600 font-normal leading-relaxed">
+                            Make a fist with your left hand to instantly pause gesture tracking during discussions.
+                        </p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200/60 text-[10px] font-mono text-slate-400">
+                        Latch Lock: Toggle Guard
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Setup Terminal & Installation Console -->
+        <section id="terminal" class="w-full max-w-5xl mx-auto border-t border-slate-200 pt-16">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
+                <div>
+                    <span class="text-xs font-mono text-emerald-600 font-semibold tracking-widest uppercase">Quick Deployment</span>
+                    <h2 class="text-3xl font-bold text-slate-900 tracking-tight mt-1">Terminal Setup Guide</h2>
+                </div>
+                <div class="mt-4 md:mt-0 text-xs text-slate-500 font-mono">
+                    Prerequisites: Python 3.8 to 3.11 &bull; OpenCV &bull; MediaPipe
+                </div>
+            </div>
+
+            <!-- Terminal HUD Window (Clean Light IDE / Terminal Theme) -->
+            <div class="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xl text-slate-800">
+                <!-- Terminal Header -->
+                <div class="px-5 py-3.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-red-400"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                        <span class="text-xs font-mono text-slate-600 font-medium ml-2">bash -- bash - 80x24</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="copyToClipboard('pip install opencv-python mediapipe pyautogui numpy', 'pipCopyBtn')" id="pipCopyBtn" class="text-[11px] font-mono text-blue-600 hover:text-blue-700 transition-colors bg-blue-50 px-3 py-1 rounded-md border border-blue-200 flex items-center space-x-1.5 font-semibold">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5"/></svg>
+                            <span>Copy Commands</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Terminal Body -->
+                <div class="p-6 font-mono text-xs text-slate-700 space-y-6 leading-relaxed">
+                    <!-- Step 1 -->
+                    <div>
+                        <div class="text-slate-500 mb-1"># 1. Install required Python packages</div>
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between text-blue-700 font-semibold">
+                            <code>$ pip install opencv-python mediapipe pyautogui numpy</code>
+                            <button onclick="copyToClipboard('pip install opencv-python mediapipe pyautogui numpy', 'c1')" id="c1" class="text-[10px] text-slate-500 hover:text-slate-900 font-medium">Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div>
+                        <div class="text-slate-500 mb-1"># 2. Launch gesture presentation engine</div>
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between text-purple-700 font-semibold">
+                            <code>$ python gesture_control.py</code>
+                            <button onclick="copyToClipboard('python gesture_control.py', 'c2')" id="c2" class="text-[10px] text-slate-500 hover:text-slate-900 font-medium">Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Pro Tip -->
+                    <div class="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 text-slate-700 text-xs font-sans">
+                        <strong class="text-blue-700 font-mono font-semibold">Pro Tip:</strong> Press keys <code class="text-purple-700 font-mono font-bold">0-9</code> while the video window is active to dynamically switch input webcam sources. Press <code class="text-purple-700 font-mono font-bold">'q'</code> to exit safely.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-30 py-10 border-t border-slate-200/80 bg-white/80 text-center text-xs text-slate-500 font-mono">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                <span>GESTER // ANTIGRAVITY AI ENGINE</span>
+            </div>
+            <p>&copy; 2026 Gester Presentation Engine &bull; Dual-telemetry layout optimization.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Popup element -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-800 font-mono text-xs shadow-2xl flex items-center space-x-2">
+        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+        <span id="toastMsg">Copied to clipboard!</span>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Anti-Gravity 3D Physics Particle Background Canvas
+        const canvas = document.getElementById('antigravityCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        const mouse = { x: -9999, y: -9999, active: false };
+        let lastMoveTime = Date.now();
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+            lastMoveTime = Date.now();
+
+            const targetRing = document.getElementById('targetRing');
+            const targetDot = document.getElementById('targetDot');
+            if (targetRing && targetDot) {
+                targetRing.setAttribute('cx', mouse.x);
+                targetRing.setAttribute('cy', mouse.y);
+                targetDot.setAttribute('cx', mouse.x);
+                targetDot.setAttribute('cy', mouse.y);
+            }
+        });
+
+        window.addEventListener('mouseleave', () => { mouse.active = false; });
+        window.addEventListener('touchmove', (e) => {
+            const t = e.touches[0];
+            if (t) {
+                mouse.x = t.clientX;
+                mouse.y = t.clientY;
+                mouse.active = true;
+                lastMoveTime = Date.now();
+            }
+        }, { passive: true });
+
+        // Color ramp: Blue (left edge) -> Purple (mid) -> Red (right edge)
+        function rampColor(tt) {
+            const blue = [37, 99, 235];    // Vibrant Blue (#2563EB)
+            const purple = [147, 51, 234]; // Transition Purple (#9333EA)
+            const red = [225, 29, 72];     // Vibrant Red (#E11D48)
+
+            const normT = Math.min(1.0, Math.max(0.0, tt));
+            if (normT <= 0.5) {
+                const localT = normT / 0.5;
+                const r = Math.round(blue[0] + (purple[0] - blue[0]) * localT);
+                const g = Math.round(blue[1] + (purple[1] - blue[1]) * localT);
+                const b = Math.round(blue[2] + (purple[2] - blue[2]) * localT);
+                return [r, g, b];
+            } else {
+                const localT = (normT - 0.5) / 0.5;
+                const r = Math.round(purple[0] + (red[0] - purple[0]) * localT);
+                const g = Math.round(purple[1] + (red[1] - purple[1]) * localT);
+                const b = Math.round(purple[2] + (red[2] - purple[2]) * localT);
+                return [r, g, b];
+            }
+        }
+
+        function rgba(c, a) { return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`; }
+
+        const BASE_INFLUENCE_RADIUS = 500;
+        const FOCAL_LENGTH = 550; // 3D Camera Perspective Focal Length
+        let proximityActive = true;
+
+        class Particle3D {
+            constructor(x, y, z, colorArr) {
+                // 3D Anchor positions
+                this.homeX = x;
+                this.homeY = y;
+                this.homeZ = z;
+
+                // 3D Spatial coordinates
+                this.x = x;
+                this.y = y;
+                this.z = z;
+
+                // 3D Velocity vectors (X, Y, Z axes)
+                this.vx = 0;
+                this.vy = 0;
+                this.vz = 0;
+
+                this.colorArr = colorArr;
+
+                // Base particle dimensions
+                this.minRadius = 0.44;
+                this.peakRadius = Math.random() * 3.5 + 2.75;
+                this.minAlpha = 0.12;
+                this.maxAlpha = 0.88;
+
+                this.currentRadius = this.minRadius;
+                this.currentAlpha = this.minAlpha;
+
+                // 3D Wave & Turbulence Dynamics
+                this.angle = Math.random() * Math.PI * 2;
+                this.len = Math.random() * 8 + 5;
+                this.wavePhase = Math.random() * Math.PI * 2;
+                this.waveSpeed = Math.random() * 0.012 + 0.004;
+
+                this.zWavePhase = Math.random() * Math.PI * 2;
+                this.zWaveSpeed = Math.random() * 0.01 + 0.003;
+                this.swirlDir = Math.random() < 0.5 ? 1 : -1;
+            }
+
+            update(time) {
+                let prox = 0;
+                let sizeFactor = 0;
+                let alphaFactor = 0;
+
+                if (mouse.active && proximityActive) {
+                    // Compute 2D projected distance in viewport space
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist2D = Math.hypot(dx, dy);
+
+                    const angleToCursor = Math.atan2(dy, dx);
+                    const wavyBoundary = BASE_INFLUENCE_RADIUS 
+                        + Math.sin(angleToCursor * 4 + time * 0.003 + this.wavePhase) * 85
+                        + Math.cos(angleToCursor * 3 - time * 0.002) * 50;
+
+                    if (dist2D < wavyBoundary && dist2D > 0.01) {
+                        prox = 1 - (dist2D / wavyBoundary);
+
+                        const innerAreaRadius = 180;
+                        if (dist2D < innerAreaRadius) {
+                            const innerT = dist2D / innerAreaRadius;
+                            sizeFactor = Math.pow(innerT, 1.8) * 0.35;
+                            alphaFactor = 0.35 + innerT * 0.5;
+                        } else {
+                            const outerT = (dist2D - innerAreaRadius) / (wavyBoundary - innerAreaRadius);
+                            sizeFactor = Math.sin(outerT * Math.PI); 
+                            alphaFactor = Math.sin(Math.pow(outerT, 0.7) * Math.PI * 0.85);
+                        }
+
+                        const fluidPower = Math.sin(prox * Math.PI * 0.5);
+                        
+                        // X & Y Fluid Repulsion & Vortex Swirl
+                        const pushStrength = fluidPower * 1.6;
+                        const radialVx = (dx / dist2D) * pushStrength;
+                        const radialVy = (dy / dist2D) * pushStrength;
+                        
+                        const swirlStrength = fluidPower * 1.3 * this.swirlDir;
+                        const swirlVx = (-dy / dist2D) * swirlStrength;
+                        const swirlVy = (dx / dist2D) * swirlStrength;
+
+                        // Z-Axis Proximity Movement (Particle shifts along Z-depth toward/away from viewer)
+                        const pushZ = Math.sin(prox * Math.PI) * 1.8 * (this.swirlDir);
+
+                        // 3D Interaction Turbulence
+                        const turbulenceStrength = prox * 2.5;
+                        const turbVx = (Math.random() - 0.5) * turbulenceStrength;
+                        const turbVy = (Math.random() - 0.5) * turbulenceStrength;
+                        const turbVz = (Math.random() - 0.5) * turbulenceStrength * 1.5;
+
+                        this.vx += (radialVx + swirlVx + turbVx) * 0.35;
+                        this.vy += (radialVy + swirlVy + turbVy) * 0.35;
+                        this.vz += (pushZ + turbVz) * 0.45;
+                    }
+                }
+
+                // Smooth radius & alpha transitions
+                const targetRadius = this.minRadius + sizeFactor * (this.peakRadius - this.minRadius);
+                const targetAlpha = this.minAlpha + alphaFactor * (this.maxAlpha - this.minAlpha);
+
+                this.currentRadius += (targetRadius - this.currentRadius) * 0.18;
+                this.currentAlpha += (targetAlpha - this.currentAlpha) * 0.18;
+
+                // 3D Harmonic floating drift along X, Y, and Z axes
+                const waveX = Math.sin(time * 0.0008 + this.wavePhase) * 0.5;
+                const waveY = Math.cos(time * 0.0010 + this.wavePhase) * 0.5;
+                const waveZ = 0;
+
+                // 3D Spring forces return particles to home position
+                const springStrength = 0.025;
+                this.vx += (this.homeX + waveX - this.x) * springStrength;
+                this.vy += (this.homeY + waveY - this.y) * springStrength;
+                this.vz += (this.homeZ + waveZ - this.z) * (springStrength * 0.8);
+
+                // 3D Fluid Damping
+                this.vx *= 0.91;
+                this.vy *= 0.91;
+                this.vz *= 0.90;
+
+                // Integrate 3D spatial motion
+                this.x += this.vx;
+                this.y += this.vy;
+                this.z += this.vz;
+
+                const speed2D = Math.hypot(this.vx, this.vy);
+                if (speed2D > 0.15) {
+                    const angleJitter = (Math.random() - 0.5) * prox * 0.6;
+                    this.angle = Math.atan2(this.vy, this.vx) + angleJitter;
+                } else {
+                    this.wavePhase += this.waveSpeed;
+                    this.zWavePhase += this.zWaveSpeed;
+                }
+            }
+
+            draw(ctx, screenW, screenH) {
+                // 3D Camera Perspective Projection
+                // Scale factor decreases with distance (z < 0) and increases as particle moves closer (z > 0)
+                const scale = FOCAL_LENGTH / Math.max(50, FOCAL_LENGTH + this.z);
+                
+                const centerX = screenW / 2;
+                const centerY = screenH / 2;
+
+                // Projected 2D screen coordinates from 3D space
+                const projX = (this.x - centerX) * scale + centerX;
+                const projY = (this.y - centerY) * scale + centerY;
+
+                // Perspective scaling of radius and depth-attenuated alpha (+25% particle size)
+                const projRadius = Math.max(0.12, this.currentRadius * scale * 1.25);
+                const depthAlphaFactor = Math.min(1.0, Math.max(0.05, scale * 0.85));
+                const projAlpha = this.currentAlpha * depthAlphaFactor;
+
+                const normX = Math.min(1.0, Math.max(0.0, projX / screenW));
+                const c = rampColor(normX);
+
+                if (mouse.active && proximityActive) {
+                    const mDx = projX - mouse.x;
+                    const mDy = projY - mouse.y;
+                    const mDist = Math.hypot(mDx, mDy);
+
+                    const R_INNER = 140; // Inner radius near pointer (particles are smaller dots)
+                    const R_OUTER = 480; // Outer radius range (particles form radial lines)
+
+                    if (mDist < R_INNER && mDist > 0.1) {
+                        // Particles near the pointer: shrink size to near zero at pointer center
+                        const normDist = mDist / R_INNER;
+                        const smallRadius = projRadius * normDist;
+
+                        if (smallRadius > 0.02) {
+                            ctx.beginPath();
+                            ctx.arc(projX, projY, smallRadius, 0, Math.PI * 2);
+                            ctx.fillStyle = rgba(c, projAlpha * Math.min(1.0, normDist * 1.2));
+                            ctx.fill();
+                        }
+                        return;
+                    } else if (mDist >= R_INNER && mDist < R_OUTER) {
+                        // Particles further out: draw smaller radial lines pointing outward from pointer center
+                        const radialFactor = (mDist - R_INNER) / (R_OUTER - R_INNER);
+                        const dirX = mDx / mDist;
+                        const dirY = mDy / mDist;
+
+                        const lineLen = (2 + radialFactor * 5) * scale;
+                        
+                        const x1 = projX - dirX * (lineLen * 0.3);
+                        const y1 = projY - dirY * (lineLen * 0.3);
+                        const x2 = projX + dirX * (lineLen * 0.7);
+                        const y2 = projY + dirY * (lineLen * 0.7);
+
+                        ctx.strokeStyle = rgba(c, projAlpha * (0.6 + radialFactor * 0.4));
+                        ctx.lineWidth = Math.max(1, projRadius * 1.1 * scale);
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                        return;
+                    }
+                }
+
+                if (projRadius <= 0.35) {
+                    const bobY = Math.sin(this.wavePhase) * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(projX, projY + bobY, projRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(15, 23, 42, ${projAlpha * 0.6})`;
+                    ctx.fill();
+                    return;
+                }
+
+                ctx.beginPath();
+                ctx.arc(projX, projY, projRadius, 0, Math.PI * 2);
+                ctx.fillStyle = rgba(c, projAlpha);
+                ctx.fill();
+            }
+        }
+
+        let particles = [];
+        function initParticles() {
+            particles = [];
+            const spacing = 50;
+            const cols = Math.floor(width / spacing);
+            const rows = Math.floor(height / spacing);
+
+            const startX = (width - (cols - 1) * spacing) / 2;
+            const startY = (height - (rows - 1) * spacing) / 2;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = startX + c * spacing;
+                    const y = startY + r * spacing;
+                    const z = 0;
+
+                    const colorArr = rampColor(x / width);
+                    particles.push(new Particle3D(x, y, z, colorArr));
+                }
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initParticles();
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        function animate(timestamp) {
+            ctx.clearRect(0, 0, width, height);
+
+            if (Date.now() - lastMoveTime > 3000) mouse.active = false;
+
+            const t = timestamp || performance.now();
+
+            // 1. Update 3D dynamics & positions
+            for (const p of particles) {
+                p.update(t);
+            }
+
+            // 2. 3D Depth Sorting: Render particles from back (furthest Z < 0) to front (closest Z > 0)
+            particles.sort((a, b) => b.z - a.z);
+
+            // 3. Render 3D depth-projected particles
+            for (const p of particles) {
+                p.draw(ctx, width, height);
+            }
+
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+
+        // Proximity Glow Toggle
+        const toggleGravityBtn = document.getElementById('toggleGravityBtn');
+        const gravityStatus = document.getElementById('gravityStatus');
+        const gravityDot = document.getElementById('gravityDot');
+
+        toggleGravityBtn.addEventListener('click', () => {
+            proximityActive = !proximityActive;
+            if(proximityActive) {
+                gravityStatus.innerText = 'PROXIMITY GLOW: ACTIVE';
+                gravityDot.className = 'w-2 h-2 rounded-full bg-blue-600 animate-pulse';
+            } else {
+                gravityStatus.innerText = 'PROXIMITY GLOW: OFF';
+                gravityDot.className = 'w-2 h-2 rounded-full bg-slate-400';
+            }
+        });
+
+        // Presentation Simulator Logic
+        const slides = [
+            {
+                tag: "Slide 01 // Vision Engine",
+                title: "Real-Time 3D Hand Tracking & Landmark Detection",
+                desc: "MediaPipe constructs a 21-point spatial skeleton in 3D coordinate space directly from any webcam feed."
+            },
+            {
+                tag: "Slide 02 // Dual Telemetry",
+                title: "Dual Camera Multi-Thread Architecture",
+                desc: "Decoupled video capture and landmark calculation queues guarantee butter-smooth 60 FPS performance."
+            },
+            {
+                tag: "Slide 03 // Latch Mechanics",
+                title: "Hysteresis Latch & Swipe Displacement Lock",
+                desc: "Smart frame locks prevent accidental double triggers when transitioning between presentation slides."
+            },
+            {
+                tag: "Slide 04 // Universal OS Integration",
+                title: "PyAutoGUI System Level Automation",
+                desc: "Works natively with PowerPoint, Google Slides, Keynote, and PDF slide decks without plugin setup."
+            }
+        ];
+
+        let currentSlideIndex = 0;
+        let simPaused = false;
+
+        function updateSimSlide() {
+            const slide = slides[currentSlideIndex];
+            const slideContent = document.getElementById('slideContent');
+            const simSlideCount = document.getElementById('simSlideCount');
+
+            slideContent.style.opacity = '0';
+            setTimeout(() => {
+                slideContent.innerHTML = `
+                    <span class="text-xs font-mono text-blue-600 font-semibold tracking-widest uppercase mb-3">${slide.tag}</span>
+                    <h3 class="text-2xl md:text-4xl font-extrabold text-slate-900 max-w-2xl leading-tight">${slide.title}</h3>
+                    <p class="text-sm text-slate-600 max-w-lg mt-4 font-normal leading-relaxed">${slide.desc}</p>
+                `;
+                simSlideCount.innerText = `SLIDE ${currentSlideIndex + 1} / ${slides.length}`;
+                slideContent.style.opacity = '1';
+            }, 150);
+        }
+
+        function triggerSimFeedback(msg, colorClass = "text-blue-700") {
+            const hud = document.getElementById('simFeedbackHud');
+            hud.innerText = msg;
+            hud.className = `absolute top-6 left-1/2 -translate-x-1/2 px-6 py-2 rounded-xl bg-white/95 border border-blue-500/40 font-mono text-sm font-semibold tracking-wide shadow-xl opacity-100 transition-opacity duration-300 z-20 ${colorClass}`;
+            setTimeout(() => {
+                hud.style.opacity = '0';
+            }, 1200);
+        }
+
+        function triggerSimGesture(action) {
+            if (action === 'pause') {
+                simPaused = !simPaused;
+                const overlay = document.getElementById('simPausedOverlay');
+                const badge = document.getElementById('simStatusBadge');
+                if (simPaused) {
+                    overlay.style.opacity = '1';
+                    overlay.style.pointerEvents = 'auto';
+                    badge.innerText = 'SYSTEM PAUSED';
+                    badge.className = 'px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 font-semibold';
+                    triggerSimFeedback('SYSTEM PAUSED', 'text-red-700');
+                } else {
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none';
+                    badge.innerText = 'SYSTEM ACTIVE';
+                    badge.className = 'px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+                    triggerSimFeedback('SYSTEM RESUMED', 'text-emerald-700');
+                }
+                return;
+            }
+
+            if (simPaused) {
+                triggerSimFeedback('CANNOT EXECUTE: SYSTEM PAUSED', 'text-red-700');
+                return;
+            }
+
+            if (action === 'next') {
+                currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+                updateSimSlide();
+                triggerSimFeedback('ACTION: NEXT SLIDE (👉)', 'text-blue-700');
+            } else if (action === 'prev') {
+                currentSlideIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+                updateSimSlide();
+                triggerSimFeedback('ACTION: PREV SLIDE (👈)', 'text-purple-700');
+            } else if (action === 'fullscreen') {
+                triggerSimFeedback('ACTION: FULLSCREEN TOGGLE (F5)', 'text-amber-700');
+            }
+        }
+
+        // Copy Clipboard Helper
+        function copyToClipboard(str, btnId) {
+            navigator.clipboard.writeText(str).then(() => {
+                const toast = document.getElementById('toast');
+                const toastMsg = document.getElementById('toastMsg');
+                toastMsg.innerText = `Copied to clipboard!`;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2500);
+            });
+        }
+    </script>
+</body>
+</html>
