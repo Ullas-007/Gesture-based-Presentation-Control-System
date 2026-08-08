@@ -4,6 +4,7 @@ import pyautogui
 import time
 import logging
 from collections import deque
+import numpy as np
 
 # =========================
 # LOGGING SETUP
@@ -14,6 +15,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 log = logging.getLogger(__name__)
+
+# Disable PyAutoGUI fail-safe pause delay for lower latency response
+pyautogui.PAUSE = 0.05
 
 # =========================
 # CONFIG
@@ -29,59 +33,39 @@ CAM_WIDTH             = 640
 CAM_HEIGHT            = 480
 MAX_CAM_FAILURES      = 30
 
-# =========================
-# WEBCAM SETUP
-# =========================
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-
-if not cap.isOpened():
-    print("[ERROR] Could not open webcam. Falling back to keyboard-only mode.")
-    log.error("Webcam failed to open.")
-    cap = None
-
-# =========================
-# MEDIAPIPE HANDS
-# =========================
-mpHands = mp.solutions.hands
-hands = mpHands.Hands(
-    max_num_hands=2,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.7
-)
-mpDraw = mp.solutions.drawing_utils
+# Blank screen window name
+BLANK_WIN = "Blank Screen  [peace sign to close]"
 
 # =========================
 # STATE VARIABLES
 # =========================
-x_history          = deque(maxlen=SWIPE_HISTORY_LEN)
-last_action_time   = 0
-paused             = False
-fist_frame_count   = 0
-peace_frame_count  = 0
-cam_fail_count     = 0
+x_history           = deque(maxlen=SWIPE_HISTORY_LEN)
+last_action_time    = 0
+paused              = False
+fist_frame_count    = 0
+peace_frame_count   = 0
+cam_fail_count      = 0
 blank_screen_active = False
 
 # UI feedback
-feedback_text  = ""
-feedback_color = (255, 255, 255)
+feedback_text   = ""
+feedback_color  = (255, 255, 255)
 feedback_expiry = 0
 
-# Blank screen window name
-BLANK_WIN = "Blank Screen  [peace sign to close]"
 
 # =========================
 # HELPERS
 # =========================
 def is_fist(landmarks):
+    """Check if hand forms a fist gesture."""
     thumb_closed   = landmarks[4][0] < landmarks[3][0]
-    finger_tips    = [8, 12, 16, 20]
+    finger_tips    = (8, 12, 16, 20)
     fingers_closed = all(landmarks[tip][1] > landmarks[tip - 2][1] for tip in finger_tips)
     return thumb_closed and fingers_closed
 
 
 def is_peace(landmarks):
+    """Check if hand forms a peace sign gesture (index & middle up, others down)."""
     index_up   = landmarks[8][1]  < landmarks[6][1]
     middle_up  = landmarks[12][1] < landmarks[10][1]
     ring_down  = landmarks[16][1] > landmarks[14][1]
@@ -91,15 +75,17 @@ def is_peace(landmarks):
 
 
 def hand_size(landmarks):
+    """Compute palm reference distance to scale gesture thresholds dynamically."""
     x0, y0 = landmarks[0]
     x9, y9 = landmarks[9]
     return ((x9 - x0) ** 2 + (y9 - y0) ** 2) ** 0.5
 
 
-def detect_swipe(x_history, dynamic_threshold):
-    if len(x_history) < SWIPE_MIN_FRAMES:
+def detect_swipe(x_hist, dynamic_threshold):
+    """Detect horizontal swipe direction from fingertip displacement history."""
+    if len(x_hist) < SWIPE_MIN_FRAMES:
         return None
-    recent      = list(x_history)[-SWIPE_MIN_FRAMES:]
+    recent      = list(x_hist)[-SWIPE_MIN_FRAMES:]
     total_delta = recent[-1] - recent[0]
     direction   = 1 if total_delta > 0 else -1
     consistent  = all(
@@ -108,7 +94,7 @@ def detect_swipe(x_history, dynamic_threshold):
     )
     if not consistent:
         return None
-    if total_delta >  dynamic_threshold:
+    if total_delta > dynamic_threshold:
         return "right"
     if total_delta < -dynamic_threshold:
         return "left"
@@ -116,6 +102,7 @@ def detect_swipe(x_history, dynamic_threshold):
 
 
 def send_key(key, label, color):
+    """Simulate keypress for slide navigation and update HUD feedback."""
     global feedback_text, feedback_color, feedback_expiry, last_action_time
     try:
         pyautogui.press(key)
@@ -129,11 +116,10 @@ def send_key(key, label, color):
 
 
 def open_blank():
+    """Display a full-screen blank overlay."""
     global blank_screen_active
-    blank = __import__('numpy').zeros(
-        (pyautogui.size()[1], pyautogui.size()[0], 3),
-        dtype=__import__('numpy').uint8
-    )
+    screen_w, screen_h = pyautogui.size()
+    blank = np.zeros((screen_h, screen_w, 3), dtype=np.uint8)
     cv2.namedWindow(BLANK_WIN, cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty(BLANK_WIN, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     cv2.imshow(BLANK_WIN, blank)
@@ -142,30 +128,33 @@ def open_blank():
 
 
 def close_blank():
+    """Close full-screen blank overlay."""
     global blank_screen_active
     cv2.destroyWindow(BLANK_WIN)
     blank_screen_active = False
     log.info("Blank screen closed.")
 
 
-def draw_ui(img, paused, blank_screen_active, feedback_text, feedback_color, feedback_expiry):
+def draw_ui(img, is_paused, is_blank, fb_text, fb_color, fb_expiry):
+    """Draw status bar and gesture feedback HUD onto the video frame."""
     current_time = time.time()
     h, w = img.shape[:2]
 
+    # Semi-transparent top bar overlay
     overlay = img.copy()
     cv2.rectangle(overlay, (0, 0), (w, 90), (30, 30, 30), -1)
     cv2.addWeighted(overlay, 0.55, img, 0.45, 0, img)
 
-    if blank_screen_active:
+    if is_blank:
         cv2.putText(img, "BLANK SCREEN  [peace sign to close]",
                     (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 200, 255), 2)
-    elif paused:
+    elif is_paused:
         cv2.putText(img, "PAUSED  [fist to resume]",
                     (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 255), 2)
     else:
-        if current_time < feedback_expiry:
-            cv2.putText(img, feedback_text, (20, 55),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, feedback_color, 2)
+        if current_time < fb_expiry:
+            cv2.putText(img, fb_text, (20, 55),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, fb_color, 2)
         else:
             cv2.putText(img, "ACTIVE  |  swipe:slide  fist:pause  peace:blank",
                         (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 1)
@@ -178,27 +167,53 @@ def draw_ui(img, paused, blank_screen_active, feedback_text, feedback_color, fee
 # KEYBOARD FALLBACK
 # =========================
 def keyboard_only_mode():
+    """Terminal interactive fallback mode when webcam is unavailable."""
     print("Keyboard-only mode. r=right, l=left, p=pause, q=quit")
     log.info("Keyboard-only mode active.")
-    paused = False
+    is_paused = False
     while True:
-        key = input("Command: ").strip().lower()
+        try:
+            key = input("Command: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            break
         if key == 'r':
-            pyautogui.press("right"); print("→ NEXT SLIDE")
+            pyautogui.press("right")
+            print("→ NEXT SLIDE")
         elif key == 'l':
-            pyautogui.press("left");  print("← PREVIOUS SLIDE")
+            pyautogui.press("left")
+            print("← PREVIOUS SLIDE")
         elif key == 'p':
-            paused = not paused;      print("PAUSED" if paused else "ACTIVE")
+            is_paused = not is_paused
+            print("PAUSED" if is_paused else "ACTIVE")
         elif key == 'q':
             break
 
 
 # =========================
-# MAIN LOOP
+# MAIN EXECUTION
 # =========================
-if cap is None:
-    keyboard_only_mode()
-else:
+def main():
+    global feedback_text, feedback_color, feedback_expiry, last_action_time
+    global paused, fist_frame_count, peace_frame_count, cam_fail_count, blank_screen_active
+
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+
+    if not cap.isOpened():
+        print("[ERROR] Could not open webcam. Falling back to keyboard-only mode.")
+        log.error("Webcam failed to open.")
+        keyboard_only_mode()
+        return
+
+    mp_hands = mp.solutions.hands
+    hands = mp_hands.Hands(
+        max_num_hands=2,
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7
+    )
+    mp_draw = mp.solutions.drawing_utils
+
     log.info("Gesture controller started.")
     try:
         while True:
@@ -218,16 +233,16 @@ else:
 
             img = cv2.flip(img, 1)
             h, w = img.shape[:2]
-            imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            results = hands.process(imgRGB)
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = hands.process(img_rgb)
 
             current_time = time.time()
 
             if results.multi_hand_landmarks:
-                for handLms in results.multi_hand_landmarks:
-                    mpDraw.draw_landmarks(img, handLms, mpHands.HAND_CONNECTIONS)
+                for hand_lms in results.multi_hand_landmarks:
+                    mp_draw.draw_landmarks(img, hand_lms, mp_hands.HAND_CONNECTIONS)
 
-                    landmarks = [(int(lm.x * w), int(lm.y * h)) for lm in handLms.landmark]
+                    landmarks = [(int(lm.x * w), int(lm.y * h)) for lm in hand_lms.landmark]
                     if len(landmarks) < 21:
                         continue
 
@@ -241,8 +256,7 @@ else:
                     else:
                         peace_frame_count = 0
 
-                    if peace_frame_count == PEACE_HOLD_FRAMES and \
-                            (current_time - last_action_time > COOLDOWN):
+                    if peace_frame_count == PEACE_HOLD_FRAMES and (current_time - last_action_time > COOLDOWN):
                         if blank_screen_active:
                             close_blank()
                             feedback_text   = "BLANK SCREEN CLOSED"
@@ -257,7 +271,7 @@ else:
                         peace_frame_count = 0
 
                     # =========================
-                    # FIST → TOGGLE PAUSE (only when blank screen closed)
+                    # FIST → TOGGLE PAUSE
                     # =========================
                     if not blank_screen_active:
                         if is_fist(landmarks):
@@ -265,8 +279,7 @@ else:
                         else:
                             fist_frame_count = 0
 
-                        if fist_frame_count == FIST_HOLD_FRAMES and \
-                                (current_time - last_action_time > COOLDOWN):
+                        if fist_frame_count == FIST_HOLD_FRAMES and (current_time - last_action_time > COOLDOWN):
                             paused           = not paused
                             x_history.clear()
                             last_action_time = current_time
@@ -284,11 +297,9 @@ else:
                     if not paused and not blank_screen_active and not is_fist(landmarks):
                         index_x, index_y = landmarks[8]
                         x_history.append(index_x)
-
                         cv2.circle(img, (index_x, index_y), 10, (255, 0, 255), cv2.FILLED)
 
                         dynamic_threshold = h_size * SWIPE_THRESHOLD_RATIO
-
                         if current_time - last_action_time > COOLDOWN:
                             swipe = detect_swipe(x_history, dynamic_threshold)
                             if swipe == "right":
@@ -305,16 +316,11 @@ else:
                 fist_frame_count  = 0
                 peace_frame_count = 0
 
-            # =========================
-            # UI RENDERING
-            # =========================
-            draw_ui(img, paused, blank_screen_active,
-                    feedback_text, feedback_color, feedback_expiry)
+            # UI Rendering
+            draw_ui(img, paused, blank_screen_active, feedback_text, feedback_color, feedback_expiry)
             cv2.imshow("Gesture Presentation Controller", img)
 
-            # =========================
-            # KEYBOARD SHORTCUTS
-            # =========================
+            # Keyboard Shortcuts
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 log.info("Quit by user.")
@@ -336,4 +342,9 @@ else:
     finally:
         cap.release()
         cv2.destroyAllWindows()
+        hands.close()
         log.info("Gesture controller shut down cleanly.")
+
+
+if __name__ == "__main__":
+    main()
