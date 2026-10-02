@@ -26,12 +26,12 @@ An AI-powered, touchless presentation control system that tracks hand gestures v
 
 ## 🛠️ Technology Stack
 
-* **Language**: Python 3.9+
-* **Computer Vision**: OpenCV (`opencv-python`)
-* **Machine Learning**: Google MediaPipe Hands (`mediapipe`)
-* **OS Automation**: PyAutoGUI (`pyautogui`)
-* **Data Processing**: NumPy (`numpy`)
-* **Web UI Landing Page**: HTML5, TailwindCSS, Canvas 3D Graphics
+* **Language**: Python 3.9+.
+* **Computer Vision**: OpenCV (`opencv-python`).
+* **Machine Learning**: Google MediaPipe Hands (`mediapipe`).
+* **OS Automation**: PyAutoGUI (`pyautogui`).
+* **Data Processing**: NumPy (`numpy`).
+* **Web UI Landing Page**: HTML5, TailwindCSS, Canvas 3D Graphics.
 
 ---
 
@@ -71,10 +71,10 @@ python main.py
 ```
 
 ### 4. Interactive Shortcuts
-* `SPACE` - Manual Pause Toggle
-* `L` or `←` - Force Previous Slide
-* `R` or `→` - Force Next Slide
-* `Q` - Clean Quit & Resource Cleanup
+* `SPACE` - Manual Pause Toggle.
+* `L` or `←` - Force Previous Slide.
+* `R` or `→` - Force Next Slide.
+* `Q` - Clean Quit & Resource Cleanup.
 
 ---
 
